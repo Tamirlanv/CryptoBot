@@ -1,0 +1,28 @@
+# Виртуальное окружение
+.venv/
+venv/
+
+# Переменные окружения
+.env
+*.env
+
+# Базы данных
+*.db
+*.sqlite3
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# IDE / Editors
+.vscode/
+.idea/
+
+# Логи
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
