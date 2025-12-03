@@ -6,7 +6,8 @@ from aiogram import Bot, Dispatcher
 
 from handlers import router
 from database import init_db
-from alert_manager import alert_manager, set_alert_manager
+from alerts import alerts_worker
+
 
 load_dotenv()
 
@@ -22,9 +23,10 @@ logging.basicConfig(
 logging.getLogger("aiogram").setLevel(logging.INFO)
 logging.getLogger("aiohttp").setLevel(logging.INFO)
 
+
 async def main():
     init_db()
-    set_alert_manager(alert_manager)
+    asyncio.create_task(alerts_worker(bot))
     await dp.start_polling(bot)
     
 if __name__ == "__main__":

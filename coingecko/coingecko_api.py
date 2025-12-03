@@ -76,6 +76,7 @@ class CoinGeckoAPI:
             "from_usd": usd1,
             "to_usd": usd2
         }
+        
 
     
     

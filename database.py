@@ -61,16 +61,24 @@ def add_alert_db(user_id, coin, direction, threshold, currency="usd"):
     conn.close()
     return alert_id
 
+
 def list_alerts_db(user_id=None):
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
     if user_id:
-        cur.execute("SELECT id, coin, direction, threshold, currency, triggered FROM alerts WHERE user_id=?", (user_id,))
+        cur.execute("""
+            SELECT id, coin, direction, threshold, currency, triggered
+            FROM alerts WHERE user_id=?
+        """, (user_id,))
     else:
-        cur.execute("SELECT id, user_id, coin, direction, threshold, currency, triggered FROM alerts")
+        cur.execute("""
+            SELECT id, user_id, coin, direction, threshold, currency, triggered
+            FROM alerts
+        """)
     rows = cur.fetchall()
     conn.close()
     return rows
+
 
 def remove_alert_db(alert_id):
     conn = sqlite3.connect(DB_PATH)
@@ -79,9 +87,12 @@ def remove_alert_db(alert_id):
     conn.commit()
     conn.close()
 
+
 def set_alert_triggered(alert_id, triggered: bool):
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
-    cur.execute("UPDATE alerts SET triggered=? WHERE id=?", (1 if triggered else 0, alert_id))
+    cur.execute("""
+        UPDATE alerts SET triggered=? WHERE id=?
+    """, (1 if triggered else 0, alert_id))
     conn.commit()
     conn.close()

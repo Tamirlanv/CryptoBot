@@ -1,41 +1,30 @@
 from aiogram import Router, F
-from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton
+from aiogram.types import Message, CallbackQuery
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 
-from database import save_cg_key, get_cg_key
+from database import *
 from coingecko.coingecko_client import cg_client
 from coingecko.coingecko_api import CoinGeckoAPI
 from utils.utils import format_price
-from alert_manager import alert_manager 
+from keyboards import *
+
 
 router = Router()
 
 
-main_kb=ReplyKeyboardMarkup(
-    keyboard = [
-        [KeyboardButton(text="💰 Курсы криптовалют")]
-    ],
-    resize_keyboard=True,
-    input_field_placeholder="Выберите опцию..."
-)
-
-
 success_text = (
-    "🔑 Ключ сохранён!\n\n"
+    "Вход успешен!\n\n"
     "Теперь вы можете пользоваться функционалом бота.\n"
     "Доступные команды:\n\n"
     "💰 *Цены и конвертация*\n"
-    "/price <coin> <vs_currency> — цена монеты\n"
-    "/convert <from> <to> <amount> — конвертация валют\n\n"
+    "/price <монета> <валюта> — цена монеты\n"
+    "/convert <из> <в> <количество> — конвертация валют\n\n"
     "🏆 *Информация о рынке*\n"
-    "/top — топ-10 криптовалют\n"
     "/coin <id> — подробная информация о монете\n"
-    "/trending — трендовые монеты\n\n"
     "⏰ *Алерты*\n"
-    "/alert <coin> <above|below> <value> [currency] — создать алерт\n"
-    "/alerts — список ваших алертов\n"
+    "/alert <монета> <выше/ниже> <значение> [валюта] — создать алерт\n"
     "/alert_remove <id> — удалить алерт\n\n"
     "Теперь можно начинать!"
 )
@@ -49,7 +38,7 @@ async def cmd_start(message: Message):
     await message.answer(f"Привет {message.from_user.full_name}\n"
                          "Я бот трекер криптовалют и имею следующий функционал\n"
                          "Чтобы начать регистрацию пожалуйста нажмите кнопку ниже",
-                         reply_markup=main_kb)
+                         reply_markup=auth_kb)
 
 
 
@@ -57,18 +46,18 @@ class CGAuth(StatesGroup):
     waiting_key = State()
 
 # ---------------- AUTH ----------------
-@router.message(F.text == "💰 Курсы криптовалют")
+@router.message(F.text == "🧑‍💻 Вход/Регистрация")
 async def cg_start(message: Message, state: FSMContext):
     key = get_cg_key(message.from_user.id)
     if key:
-        return await message.answer(success_text)
+        return await message.answer(success_text, reply_markup=main_kb)
     await message.answer("Введите ваш CoinGecko Demo API Key:")
     await state.set_state(CGAuth.waiting_key)
 
 @router.message(CGAuth.waiting_key)
 async def cg_got_key(message: Message, state: FSMContext):
     save_cg_key(message.from_user.id, message.text.strip())
-    await message.answer(success_text)
+    await message.answer(success_text, reply_markup=main_kb)
     await state.clear()
 
 # ---------------- PRICE ----------------
@@ -77,7 +66,7 @@ async def cg_price(message: Message):
     args = message.text.split()
     if len(args) != 3:
         return await message.answer("Формат: /price bitcoin usd")
-    coin, vs = args[1], args[2]
+    coin, vs = args[1].lower(), args[2].lower()
     api_key = get_cg_key(message.from_user.id)
     if not api_key:
         return await message.answer("Сначала введите CoinGecko API Key!")
@@ -89,33 +78,69 @@ async def cg_price(message: Message):
     price = data.get(coin, {}).get(vs)
     if price is None:
         return await message.answer("Пара не поддерживается.")
-    await message.answer(f"💰 {coin.upper()} → {vs.upper()} = {format_price(price)}")
+    await message.answer(f"💰 {coin.upper()} → {vs.upper()} = {format_price(price)}",
+                         reply_markup=price_keyboard(coin))
+    
+    
+@router.callback_query(F.data.startswith("price"))
+async def price_callback(callback: CallbackQuery):
+    _, coin, vs = callback.data.split(":")
+
+    api_key = get_cg_key(callback.from_user.id)
+    api = CoinGeckoAPI(api_key, cg_client)
+    await cg_client.init()
+    data = await api.price(coin, vs)
+
+    price = data.get(coin, {}).get(vs)
+    if price is None:
+        return await callback.message.edit_text("Пара не поддерживается.")
+
+    await callback.message.edit_text(
+        f"💰 {coin.upper()} → {vs.upper()} = {format_price(price)}",
+        reply_markup=price_keyboard(coin)
+    )
 
 # ---------------- CONVERT ----------------
 @router.message(F.text.startswith("/convert"))
 async def cg_convert(message: Message):
     args = message.text.split()
     if len(args) != 4:
-        return await message.answer("Формат: /convert <from> <to> <amount>\nПример: /convert bitcoin tether 0.5")
+        return await message.answer("Формат: /convert <from> <to> <amount>")
+
     from_coin, to_coin = args[1].lower(), args[2].lower()
-    try:
-        amount = float(args[3])
-    except:
-        return await message.answer("Неверное количество.")
+    amount = float(args[3])
+
     api_key = get_cg_key(message.from_user.id)
-    if not api_key:
-        return await message.answer("Сначала введите CoinGecko API Key!")
     api = CoinGeckoAPI(api_key, cg_client)
     await cg_client.init()
+
     data = await api.convert(from_coin, to_coin, amount)
-    if not data or "error" in data:
-        return await message.answer("Монета не найдена или ошибка API.")
+
     await message.answer(
-        f"💱 {amount} {from_coin.upper()} = {format_price(data['result'])} {to_coin.upper()}\n"
+        f"💱 {amount} {from_coin.upper()} = {format_price(data['result'])} {to_coin.upper()}",
+        reply_markup=convert_keyboard(from_coin, amount)
+    )
+    
+    
+@router.callback_query(F.data.startswith("convert"))
+async def convert_callback(callback: CallbackQuery):
+    _, from_coin, to_coin, amount = callback.data.split(":")
+    amount = float(amount)
+
+    api_key = get_cg_key(callback.from_user.id)
+    api = CoinGeckoAPI(api_key, cg_client)
+    await cg_client.init()
+
+    data = await api.convert(from_coin, to_coin, amount)
+
+    await callback.message.edit_text(
+        f"💱 {amount} {from_coin.upper()} = {format_price(data['result'])} {to_coin.upper()}",
+        reply_markup=convert_keyboard(from_coin, amount)
     )
 
+
 # ---------------- TOP ----------------
-@router.message(F.text == "/top")
+@router.message(F.text == "⭐ Топ 10")
 async def cg_top(message: Message):
     api_key = get_cg_key(message.from_user.id)
     if not api_key:
@@ -158,7 +183,7 @@ async def cg_coin(message: Message):
     await message.answer(text)
 
 # ---------------- TRENDING ----------------
-@router.message(F.text == "/trending")
+@router.message(F.text == "🔥 Тренды")
 async def cg_trending(message: Message):
     api_key = get_cg_key(message.from_user.id)
     if not api_key:
@@ -177,51 +202,65 @@ async def cg_trending(message: Message):
     await message.answer(text)
 
 # ---------------- ALERTS ----------------
-@router.message(F.text == "/alert")
-async def cg_alert(message: Message):
-    parts = message.text.split()
-    if len(parts) not in (4,5):
-        return await message.answer("Формат: /alert <coin> <above|below> <threshold> [currency]\nПример: /alert bitcoin above 90000 usd")
-    coin = parts[1].lower()
-    direction = parts[2].lower()
-    if direction not in ("above","below"):
-        return await message.answer("direction must be 'above' or 'below'")
-    try:
-        threshold = float(parts[3])
-    except:
-        return await message.answer("Неверный threshold")
-    currency = parts[4].lower() if len(parts)==5 else "usd"
-    user_id = message.from_user.id
-    api_key = get_cg_key(user_id)
-    if not api_key:
-        return await message.answer("Сначала введите CoinGecko API Key!")
-    if not alert_manager:
-        return await message.answer("Alert manager not ready, попробуйте позже.")
-    alert_id = alert_manager.add_alert(user_id, coin, direction, threshold, currency)
-    await message.answer(f"✅ Алерт добавлен (id={alert_id}): {coin} {direction} {threshold} {currency}")
 
-@router.message(F.text == "/alerts")
-async def cg_list_alerts(message: Message):
-    user_id = message.from_user.id
-    rows = alert_manager.list_user_alerts(user_id)
-    if not rows:
+@router.message(F.text == "🔔 Мои алерты")
+async def my_alerts(message: Message):
+    alerts = list_alerts_db(message.from_user.id)
+    if not alerts:
         return await message.answer("У вас нет активных алертов.")
-    text = "Ваши алерты:\n"
-    for r in rows:
-        aid, coin, direction, threshold, currency, triggered = r
-        text += f"id={aid}: {coin} {direction} {threshold} {currency} triggered={bool(triggered)}\n"
+    text = "🔔 Ваши алерты:\n\n"
+    for id, coin, direction, threshold, currency, triggered in alerts:
+        text += (
+            f"#{id}: {coin.upper()} — {direction} {threshold} {currency.upper()} "
+            f"{'✅ СРАБОТАЛ' if triggered else ''}\n"
+        )
     await message.answer(text)
-
+    
+    
 @router.message(F.text.startswith("/alert_remove"))
-async def cg_remove_alert(message: Message):
-    parts = message.text.split()
-    if len(parts) != 2:
+async def alert_remove(message: Message):
+    args = message.text.split()
+    if len(args) != 2:
         return await message.answer("Формат: /alert_remove <id>")
     try:
-        aid = int(parts[1])
+        alert_id = int(args[1])
     except:
-        return await message.answer("id должен быть числом")
-    alert_manager.remove_alert(aid)
-    await message.answer(f"✅ Алерт {aid} удалён.")
+        return await message.answer("ID должен быть числом.")
+    remove_alert_db(alert_id)
+    await message.answer(f"🗑 Алерт #{alert_id} удалён.")
+    
+
+@router.message(F.text.startswith("/alert"))
+async def alert_create(message: Message):
+    args = message.text.split()
+    if len(args) < 4:
+        return await message.answer(
+            "Формат:\n"
+            "/alert <монета> <above/below> <цена> [валюта]\n"
+            "Пример: /alert bitcoin выше 70000 usd"
+        )
+    coin = args[1].lower()
+    direction = args[2].lower()
+    if direction not in ("выше", "ниже"):
+        return await message.answer("Напишите 'выше' или 'ниже'.")
+    try:
+        threshold = float(args[3])
+    except:
+        return await message.answer("Неверное значение цены.")
+    currency = args[4].lower() if len(args) > 4 else "usd"
+    alert_id = add_alert_db(
+        message.from_user.id,
+        coin,
+        "above" if direction == "выше" else "below",
+        threshold,
+        currency
+    )
+    await message.answer(
+        f"🔔 Алерт создан!\nID: {alert_id}\nМонета: {coin}\nУсловие: {direction} {threshold} {currency}"
+    )
+
+
+
+
 
 
