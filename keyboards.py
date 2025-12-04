@@ -35,35 +35,6 @@ def price_keyboard(coin):
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 
-CRYPTO_LIST = {
-    "btc": "bitcoin",
-    "eth": "ethereum",
-    "sol": "solana",
-    "doge": "dogecoin",
-    "xrp": "ripple",
-    "bnb": "binancecoin",
-    "ton": "toncoin",
-    "ada": "cardano",
-    "dot": "polkadot",
-    "trx": "tron",
-    "ltc": "litecoin",
-    "usdt": "tether",
-}
-
-def convert_keyboard(from_coin, amount):
-    keyboard = []
-    row = []
-    for coin in CRYPTO_LIST:
-        row.append(InlineKeyboardButton(
-            text=coin.upper(),
-            callback_data=f"convert:{from_coin}:{coin}:{amount}"
-        ))
-        if len(row) == 2:
-            keyboard.append(row)
-            row = []
-    if row:
-        keyboard.append(row)
-    return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 
 

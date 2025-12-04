@@ -31,15 +31,55 @@ success_text = (
 
 client=cg_client
 
-
-
 @router.message(Command('start'))
 async def cmd_start(message: Message):
     await message.answer(f"Привет {message.from_user.full_name}\n"
                          "Я бот трекер криптовалют и имею следующий функционал\n"
                          "Чтобы начать регистрацию пожалуйста нажмите кнопку ниже",
                          reply_markup=auth_kb)
+    
+    
+@router.message(Command("help"))
+async def cmd_help(message: Message):
+    text = (
+        "🆘 *Помощь по командам*\n\n"
+        "Вот что я умею:\n\n"
+        "💰 *Цены и конвертация*\n"
+        "/price <монета> <валюта> — узнать цену монеты\n"
+        "/convert <из> <в> <количество> — конвертация крипты\n\n"
+        "🏆 *Информация о рынке*\n"
+        "/coin <id> — подробная информация о монете\n"
+        "⭐ Топ 10 — топ монет по капитализации\n"
+        "🔥 Тренды — что сейчас в топе по активности\n\n"
+        "🔔 *Алерты*\n"
+        "/alert <coin> <выше/ниже> <цена> [валюта] — создать алерт\n"
+        "/alert_remove <id> — удалить алерт\n"
+        "🔔 Мои алерты — список активных алертов\n\n"
+        "🧑‍💻 *Аккаунт*\n"
+        "Вход/регистрация — сохранить API Key\n\n"
+        "ℹ️ Используйте кнопки для быстрого доступа к функциям."
+    )
+    await message.answer(text, reply_markup=main_kb)
 
+
+@router.message(Command("about"))
+async def cmd_about(message: Message):
+    text = (
+        "ℹ️ *О боте*\n\n"
+        "Этот бот является крипто-трекером, который получает данные с CoinGecko API.\n\n"
+        "📊 Возможности:\n"
+        "• цены криптовалют\n"
+        "• топ-10 монет\n"
+        "• тренды\n"
+        "• подробная информация по монетам\n"
+        "• конвертация крипто → крипто\n"
+        "• уведомления (алерты) по цене\n\n"
+        "🧩 Разработчик: *TimaDinoSuperPuper*\n"
+        "⚙️ Библиотека: Aiogram 3\n"
+        "🌐 Источник данных: CoinGecko API\n\n"
+        "Спасибо, что используете бота!"
+    )
+    await message.answer(text, reply_markup=main_kb)
 
 
 class CGAuth(StatesGroup):
@@ -117,27 +157,9 @@ async def cg_convert(message: Message):
     data = await api.convert(from_coin, to_coin, amount)
 
     await message.answer(
-        f"💱 {amount} {from_coin.upper()} = {format_price(data['result'])} {to_coin.upper()}",
-        reply_markup=convert_keyboard(from_coin, amount)
-    )
+        f"💱 {amount} {from_coin.upper()} = {format_price(data['result'])} {to_coin.upper()}")
     
     
-@router.callback_query(F.data.startswith("convert"))
-async def convert_callback(callback: CallbackQuery):
-    _, from_coin, to_coin, amount = callback.data.split(":")
-    amount = float(amount)
-
-    api_key = get_cg_key(callback.from_user.id)
-    api = CoinGeckoAPI(api_key, cg_client)
-    await cg_client.init()
-
-    data = await api.convert(from_coin, to_coin, amount)
-
-    await callback.message.edit_text(
-        f"💱 {amount} {from_coin.upper()} = {format_price(data['result'])} {to_coin.upper()}",
-        reply_markup=convert_keyboard(from_coin, amount)
-    )
-
 
 # ---------------- TOP ----------------
 @router.message(F.text == "⭐ Топ 10")
@@ -258,9 +280,33 @@ async def alert_create(message: Message):
     await message.answer(
         f"🔔 Алерт создан!\nID: {alert_id}\nМонета: {coin}\nУсловие: {direction} {threshold} {currency}"
     )
+    
 
+@router.message(F.text == "💰 Курсы криптовалют")
+async def get_cryptos(message: Message):
+    user_id = message.from_user.id
+    api_key = get_cg_key(user_id)
+    if not api_key:
+        return await message.answer("Сначала введите CoinGecko API Key!")
+    client.api_key = api_key
+    await client.init()
+    api = CoinGeckoAPI(api_key, client)
+    data = await api.get_markets(vs_currency="usd", per_page=10, page=1)
+    if not data or "error" in data:
+        return await message.answer("Ошибка загрузки данных от CoinGecko.")
+    text = "💰 *Курсы криптовалют*\n\n"
+    for i, coin in enumerate(data, 1):
+        name = coin.get("name")
+        symbol = coin.get("symbol", "").upper()
+        price = coin.get("current_price")
+        change = coin.get("price_change_percentage_24h")
+        price_f = format_price(price) if price is not None else "—"
+        change_f = f"{change:+.2f}%" if change is not None else "—"
+        text += (
+            f"{i}. *{name}* ({symbol})\n"
+            f"   Цена: ${price_f}\n"
+            f"   24h: {change_f}\n"
+        )
 
-
-
-
+    await message.answer(text, parse_mode="Markdown")
 
