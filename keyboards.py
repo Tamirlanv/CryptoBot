@@ -35,6 +35,19 @@ def price_keyboard(coin):
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 
+links_kb = InlineKeyboardMarkup(
+    inline_keyboard=[
+        [
+            InlineKeyboardButton(text="CoinGecko docs", callback_data="docs"),
+            InlineKeyboardButton(text="FAQ", callback_data="faq"),
+        ],
+        [
+            InlineKeyboardButton(text="Открыть сайт", url="https://coingecko.com"),
+        ],
+    ]
+)
+
+
 
 
 
