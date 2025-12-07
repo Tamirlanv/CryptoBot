@@ -1,6 +1,6 @@
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
-from aiogram.filters import Command, StateFilter
+from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 
@@ -84,19 +84,12 @@ async def cmd_about(message: Message):
 
 class CGAuth(StatesGroup):
     waiting_key = State()
-    authenticated = State()  # состояние авторизованного пользователя
 
 # ---------------- AUTH ----------------
 @router.message(F.text == "🧑‍💻 Вход/Регистрация")
 async def cg_start(message: Message, state: FSMContext):
-    current_state = await state.get_state()
-    # Если уже авторизован и нажимает кнопку входа — не делаем ничего
-    if current_state == CGAuth.authenticated:
-        return await message.answer("Вы уже авторизованы! ✅")
-    
     key = get_cg_key(message.from_user.id)
     if key:
-        await state.set_state(CGAuth.authenticated)
         return await message.answer(success_text, reply_markup=main_kb)
     await message.answer("Введите ваш CoinGecko Demo API Key:")
     await state.set_state(CGAuth.waiting_key)
@@ -105,10 +98,10 @@ async def cg_start(message: Message, state: FSMContext):
 async def cg_got_key(message: Message, state: FSMContext):
     save_cg_key(message.from_user.id, message.text.strip())
     await message.answer(success_text, reply_markup=main_kb)
-    await state.set_state(CGAuth.authenticated)  # переводим в состояние авторизованного пользователя
+    await state.clear()
 
 # ---------------- PRICE ----------------
-@router.message(StateFilter(CGAuth.authenticated), F.text.startswith("/price"))
+@router.message(F.text.startswith("/price"))
 async def cg_price(message: Message):
     args = message.text.split()
     if len(args) != 3:
@@ -129,7 +122,7 @@ async def cg_price(message: Message):
                          reply_markup=price_keyboard(coin))
     
     
-@router.callback_query(StateFilter(CGAuth.authenticated), F.data.startswith("price"))
+@router.callback_query(F.data.startswith("price"))
 async def price_callback(callback: CallbackQuery):
     _, coin, vs = callback.data.split(":")
 
@@ -148,7 +141,7 @@ async def price_callback(callback: CallbackQuery):
     )
 
 # ---------------- CONVERT ----------------
-@router.message(StateFilter(CGAuth.authenticated), F.text.startswith("/convert"))
+@router.message(F.text.startswith("/convert"))
 async def cg_convert(message: Message):
     args = message.text.split()
     if len(args) != 4:
@@ -169,7 +162,7 @@ async def cg_convert(message: Message):
     
 
 # ---------------- TOP ----------------
-@router.message(StateFilter(CGAuth.authenticated), F.text == "⭐ Топ 10")
+@router.message(F.text == "⭐ Топ 10")
 async def cg_top(message: Message):
     api_key = get_cg_key(message.from_user.id)
     if not api_key:
@@ -186,7 +179,7 @@ async def cg_top(message: Message):
     await message.answer(text)
 
 # ---------------- COIN INFO ----------------
-@router.message(StateFilter(CGAuth.authenticated), F.text.startswith("/coin"))
+@router.message(F.text.startswith("/coin"))
 async def cg_coin(message: Message):
     args = message.text.split()
     if len(args) != 2:
@@ -212,7 +205,7 @@ async def cg_coin(message: Message):
     await message.answer(text)
 
 # ---------------- TRENDING ----------------
-@router.message(StateFilter(CGAuth.authenticated), F.text == "🔥 Тренды")
+@router.message(F.text == "🔥 Тренды")
 async def cg_trending(message: Message):
     api_key = get_cg_key(message.from_user.id)
     if not api_key:
@@ -232,7 +225,7 @@ async def cg_trending(message: Message):
 
 # ---------------- ALERTS ----------------
 
-@router.message(StateFilter(CGAuth.authenticated), F.text == "🔔 Мои алерты")
+@router.message(F.text == "🔔 Мои алерты")
 async def my_alerts(message: Message):
     alerts = list_alerts_db(message.from_user.id)
     if not alerts:
@@ -246,7 +239,7 @@ async def my_alerts(message: Message):
     await message.answer(text)
     
     
-@router.message(StateFilter(CGAuth.authenticated), F.text.startswith("/alert_remove"))
+@router.message(F.text.startswith("/alert_remove"))
 async def alert_remove(message: Message):
     args = message.text.split()
     if len(args) != 2:
@@ -259,7 +252,7 @@ async def alert_remove(message: Message):
     await message.answer(f"🗑 Алерт #{alert_id} удалён.")
     
 
-@router.message(StateFilter(CGAuth.authenticated), F.text.startswith("/alert"))
+@router.message(F.text.startswith("/alert"))
 async def alert_create(message: Message):
     args = message.text.split()
     if len(args) < 4:
@@ -289,7 +282,7 @@ async def alert_create(message: Message):
     )
     
 
-@router.message(StateFilter(CGAuth.authenticated), F.text == "💰 Курсы криптовалют")
+@router.message(F.text == "💰 Курсы криптовалют")
 async def get_cryptos(message: Message):
     user_id = message.from_user.id
     api_key = get_cg_key(user_id)
@@ -316,16 +309,4 @@ async def get_cryptos(message: Message):
         )
 
     await message.answer(text, parse_mode="Markdown")
-
-
-# -------- Перехват неавторизованных команд (очень низкий приоритет) --------
-@router.message(~StateFilter(CGAuth.authenticated), ~StateFilter(CGAuth.waiting_key))
-async def not_authenticated(message: Message):
-    """Отправляет сообщение при попытке использовать команды без авторизации"""
-    await message.answer(
-        "❌ Вы не авторизованы!\n\n"
-        "Пожалуйста, сначала пройдите регистрацию.\n"
-        "Нажмите кнопку '🧑‍💻 Вход/Регистрация'",
-        reply_markup=auth_kb
-    )
 
