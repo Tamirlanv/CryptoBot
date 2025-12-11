@@ -51,7 +51,7 @@ pip install -r requirements.txt
 В корне проекта создайте файл `.env` и добавьте:
 
 ```env
-TELEGRAM_TOKEN=123456789:ABCDEF1234567890abcdef1234567890abc
+TELEGRAM_TOKEN=YOUR_TELEGRAM_TOKEN
 ```
 
 Файл `.env` уже добавлен в `.gitignore` и не будет загружен в репозиторий, что обеспечивает безопасность ваших учётных данных.
