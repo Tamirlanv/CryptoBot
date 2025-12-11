@@ -1,3 +1,4 @@
+#handlers.py
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
 from aiogram.filters import Command
@@ -13,17 +14,16 @@ from keyboards import *
 
 router = Router()
 
-
 success_text = (
     "Вход успешен!\n\n"
     "Теперь вы можете пользоваться функционалом бота.\n"
     "Доступные команды:\n\n"
-    "💰 *Цены и конвертация*\n"
+    " *Цены и конвертация*\n"
     "/price <монета> <валюта> — цена монеты\n"
     "/convert <из> <в> <количество> — конвертация валют\n\n"
-    "🏆 *Информация о рынке*\n"
+    " *Информация о рынке*\n"
     "/coin <id> — подробная информация о монете\n"
-    "⏰ *Алерты*\n"
+    " *Алерты*\n"
     "/alert <монета> <выше/ниже> <значение> [валюта] — создать алерт\n"
     "/alert_remove <id> — удалить алерт\n\n"
     "Теперь можно начинать!"
@@ -36,28 +36,28 @@ async def cmd_start(message: Message):
     await message.answer(f"Привет {message.from_user.full_name}\n"
                          "Я бот трекер криптовалют и имею следующий функционал\n"
                          "Чтобы начать регистрацию пожалуйста нажмите кнопку ниже",
-                         reply_markup=auth_kb)
+                         reply_markup=main_kb)
     
     
 @router.message(Command("help"))
 async def cmd_help(message: Message):
     text = (
-        "🆘 *Помощь по командам*\n\n"
+        " *Помощь по командам*\n\n"
         "Вот что я умею:\n\n"
-        "💰 *Цены и конвертация*\n"
+        " *Цены и конвертация*\n"
         "/price <монета> <валюта> — узнать цену монеты\n"
         "/convert <из> <в> <количество> — конвертация крипты\n\n"
-        "🏆 *Информация о рынке*\n"
+        " *Информация о рынке*\n"
         "/coin <id> — подробная информация о монете\n"
-        "⭐ Топ 10 — топ монет по капитализации\n"
-        "🔥 Тренды — что сейчас в топе по активности\n\n"
-        "🔔 *Алерты*\n"
+        " Топ 10 — топ монет по капитализации\n"
+        " Тренды — что сейчас в топе по активности\n\n"
+        " *Алерты*\n"
         "/alert <coin> <выше/ниже> <цена> [валюта] — создать алерт\n"
         "/alert_remove <id> — удалить алерт\n"
-        "🔔 Мои алерты — список активных алертов\n\n"
-        "🧑‍💻 *Аккаунт*\n"
+        " Мои алерты — список активных алертов\n\n"
+        " *Аккаунт*\n"
         "Вход/регистрация — сохранить API Key\n\n"
-        "ℹ️ Используйте кнопки для быстрого доступа к функциям."
+        " Используйте кнопки для быстрого доступа к функциям."
     )
     await message.answer(text, reply_markup=main_kb)
 
@@ -65,42 +65,23 @@ async def cmd_help(message: Message):
 @router.message(Command("about"))
 async def cmd_about(message: Message):
     text = (
-        "ℹ️ *О боте*\n\n"
+        "*О боте*\n\n"
         "Этот бот является крипто-трекером, который получает данные с CoinGecko API.\n\n"
-        "📊 Возможности:\n"
-        "• цены криптовалют\n"
-        "• топ-10 монет\n"
-        "• тренды\n"
-        "• подробная информация по монетам\n"
-        "• конвертация крипто → крипто\n"
-        "• уведомления (алерты) по цене\n\n"
-        "🧩 Разработчик: *TimaDinoSuperPuper*\n"
-        "⚙️ Библиотека: Aiogram 3\n"
-        "🌐 Источник данных: CoinGecko API\n\n"
+        "Возможности:\n"
+        "цены криптовалют\n"
+        "топ-10 монет\n"
+        "тренды\n"
+        "подробная информация по монетам\n"
+        "Конвертация крипто → крипто\n"
+        "уведомления (алерты) по цене\n\n"
+        "Разработчик: *TimaDinoSuperPuper*\n"
+        "Библиотека: Aiogram 3\n"
+        "Источник данных: CoinGecko API\n\n"
         "Спасибо, что используете бота!"
     )
     await message.answer(text, reply_markup=main_kb)
 
 
-class CGAuth(StatesGroup):
-    waiting_key = State()
-
-# ---------------- AUTH ----------------
-@router.message(F.text == "🧑‍💻 Вход/Регистрация")
-async def cg_start(message: Message, state: FSMContext):
-    key = get_cg_key(message.from_user.id)
-    if key:
-        return await message.answer(success_text, reply_markup=main_kb)
-    await message.answer("Введите ваш CoinGecko Demo API Key:")
-    await state.set_state(CGAuth.waiting_key)
-
-@router.message(CGAuth.waiting_key)
-async def cg_got_key(message: Message, state: FSMContext):
-    save_cg_key(message.from_user.id, message.text.strip())
-    await message.answer(success_text, reply_markup=main_kb)
-    await state.clear()
-
-# ---------------- PRICE ----------------
 @router.message(F.text.startswith("/price"))
 async def cg_price(message: Message):
     args = message.text.split()
@@ -118,9 +99,8 @@ async def cg_price(message: Message):
     price = data.get(coin, {}).get(vs)
     if price is None:
         return await message.answer("Пара не поддерживается.")
-    await message.answer(f"💰 {coin.upper()} → {vs.upper()} = {format_price(price)}",
+    await message.answer(f" {coin.upper()} → {vs.upper()} = {format_price(price)}",
                          reply_markup=price_keyboard(coin))
-    
     
 @router.callback_query(F.data.startswith("price"))
 async def price_callback(callback: CallbackQuery):
@@ -136,11 +116,10 @@ async def price_callback(callback: CallbackQuery):
         return await callback.message.edit_text("Пара не поддерживается.")
 
     await callback.message.edit_text(
-        f"💰 {coin.upper()} → {vs.upper()} = {format_price(price)}",
+        f" {coin.upper()} → {vs.upper()} = {format_price(price)}",
         reply_markup=price_keyboard(coin)
     )
 
-# ---------------- CONVERT ----------------
 @router.message(F.text.startswith("/convert"))
 async def cg_convert(message: Message):
     args = message.text.split()
@@ -157,12 +136,10 @@ async def cg_convert(message: Message):
     data = await api.convert(from_coin, to_coin, amount)
 
     await message.answer(
-        f"💱 {amount} {from_coin.upper()} = {format_price(data['result'])} {to_coin.upper()}")
-    
+        f" {amount} {from_coin.upper()} = {format_price(data['result'])} {to_coin.upper()}")
     
 
-# ---------------- TOP ----------------
-@router.message(F.text == "⭐ Топ 10")
+@router.message(F.text == "Топ 10")
 async def cg_top(message: Message):
     api_key = get_cg_key(message.from_user.id)
     if not api_key:
@@ -178,7 +155,6 @@ async def cg_top(message: Message):
         text += f"{i}. {coin.get('name')} ({coin.get('symbol').upper()}) — ${format_price(coin.get('current_price'))} — 24h: {coin.get('price_change_percentage_24h'):.2f}%\n"
     await message.answer(text)
 
-# ---------------- COIN INFO ----------------
 @router.message(F.text.startswith("/coin"))
 async def cg_coin(message: Message):
     args = message.text.split()
@@ -201,11 +177,10 @@ async def cg_coin(message: Message):
     change24 = md.get("price_change_percentage_24h")
     desc = data.get("description", {}).get("en") or ""
     short_desc = (desc[:300] + "...") if desc and len(desc) > 300 else desc
-    text = f"🪙 {data.get('name')} ({data.get('symbol').upper()})\nPrice: ${price}\nMarket cap: ${cap}\n24h volume: ${vol}\n24h change: {change24}%\n\n{short_desc}"
+    text = f" {data.get('name')} ({data.get('symbol').upper()})\nPrice: ${price}\nMarket cap: ${cap}\n24h volume: ${vol}\n24h change: {change24}%\n\n{short_desc}"
     await message.answer(text)
 
-# ---------------- TRENDING ----------------
-@router.message(F.text == "🔥 Тренды")
+@router.message(F.text == "Тренды")
 async def cg_trending(message: Message):
     api_key = get_cg_key(message.from_user.id)
     if not api_key:
@@ -217,28 +192,25 @@ async def cg_trending(message: Message):
     if not data or "error" in data:
         return await message.answer("Ошибка получения трендов.")
     coins = data.get("coins", [])
-    text = "🔥 Trending:\n"
+    text = "Trending:\n"
     for item in coins:
         c = item.get("item", {})
         text += f"- {c.get('name')} ({c.get('symbol').upper()}) — market cap rank: {c.get('market_cap_rank')}\n"
     await message.answer(text)
 
-# ---------------- ALERTS ----------------
-
-@router.message(F.text == "🔔 Мои алерты")
+@router.message(F.text == "Мои алерты")
 async def my_alerts(message: Message):
     alerts = list_alerts_db(message.from_user.id)
     if not alerts:
         return await message.answer("У вас нет активных алертов.")
-    text = "🔔 Ваши алерты:\n\n"
+    text = "Ваши алерты:\n\n"
     for id, coin, direction, threshold, currency, triggered in alerts:
         text += (
             f"#{id}: {coin.upper()} — {direction} {threshold} {currency.upper()} "
-            f"{'✅ СРАБОТАЛ' if triggered else ''}\n"
+            f"{' СРАБОТАЛ' if triggered else ''}\n"
         )
     await message.answer(text)
-    
-    
+        
 @router.message(F.text.startswith("/alert_remove"))
 async def alert_remove(message: Message):
     args = message.text.split()
@@ -251,7 +223,6 @@ async def alert_remove(message: Message):
     remove_alert_db(alert_id)
     await message.answer(f"🗑 Алерт #{alert_id} удалён.")
     
-
 @router.message(F.text.startswith("/alert"))
 async def alert_create(message: Message):
     args = message.text.split()
@@ -278,11 +249,10 @@ async def alert_create(message: Message):
         currency
     )
     await message.answer(
-        f"🔔 Алерт создан!\nID: {alert_id}\nМонета: {coin}\nУсловие: {direction} {threshold} {currency}"
+        f" Алерт создан!\nID: {alert_id}\nМонета: {coin}\nУсловие: {direction} {threshold} {currency}"
     )
     
-
-@router.message(F.text == "💰 Курсы криптовалют")
+@router.message(F.text == "Курсы криптовалют")
 async def get_cryptos(message: Message):
     user_id = message.from_user.id
     api_key = get_cg_key(user_id)
@@ -294,7 +264,7 @@ async def get_cryptos(message: Message):
     data = await api.get_markets(vs_currency="usd", per_page=10, page=1)
     if not data or "error" in data:
         return await message.answer("Ошибка загрузки данных от CoinGecko.")
-    text = "💰 *Курсы криптовалют*\n\n"
+    text = "Курсы криптовалют\n\n"
     for i, coin in enumerate(data, 1):
         name = coin.get("name")
         symbol = coin.get("symbol", "").upper()

@@ -1,3 +1,4 @@
+#database.py
 import sqlite3
 
 DB_PATH = "users.db"
