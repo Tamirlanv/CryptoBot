@@ -1,13 +1,5 @@
 def format_price(x: float) -> str:
-    s = str(x)
-    if '.' not in s:
-        return s  
-    whole, frac = s.split('.', 1)
-    frac = frac[:3]
-    frac = frac.rstrip('0')
-    if frac == "":
-        return f"{whole}.0"
-    return f"{whole}.{frac}"
+    return f"{x:.3f}".rstrip('0').rstrip('.')
 
 
 VALID_FIAT = {
@@ -18,3 +10,4 @@ VALID_FIAT = {
 
 def validate_currency(currency: str) -> bool:
     return currency.lower() in VALID_FIAT
+

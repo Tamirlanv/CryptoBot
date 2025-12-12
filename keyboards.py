@@ -3,7 +3,8 @@ from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMar
 main_kb=ReplyKeyboardMarkup(
     keyboard = [
         [KeyboardButton(text="🔔 Мои алерты"), KeyboardButton(text="⭐ Топ 10")],
-        [KeyboardButton(text="🔥 Тренды"), KeyboardButton(text="💰 Курсы криптовалют")]
+        [KeyboardButton(text="🔥 Тренды"), KeyboardButton(text="💰 Курсы криптовалют")],
+        [KeyboardButton(text="📋 Доступные криптовалюты")]
     ],
     resize_keyboard=True,
     input_field_placeholder="Выберите опцию..."
@@ -17,7 +18,7 @@ auth_kb=ReplyKeyboardMarkup(
     input_field_placeholder="Пройдите регистрацию"
 )
 
-VS_LIST = ["usd", "eur", "rub", "kzt", "cny", "try", "gbp", "uah", "jpy", "cad", "chf", "brl"]
+VS_LIST = ["usd", "eur", "rub", "cny", "try", "gbp", "uah", "jpy", "cad", "chf"]
 
 def price_keyboard(coin):
     keyboard = []

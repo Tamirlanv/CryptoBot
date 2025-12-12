@@ -1,5 +1,5 @@
 import asyncio
-from database import list_alerts_db, set_alert_triggered, get_cg_key
+from database import list_alerts_db, set_alert_triggered
 from coingecko.coingecko_api import CoinGeckoAPI
 from coingecko.coingecko_client import cg_client
 
@@ -13,11 +13,7 @@ async def alerts_worker(bot):
             if triggered:
                 continue
 
-            key = get_cg_key(user_id)
-            if not key:
-                continue
-
-            api = CoinGeckoAPI(key, cg_client)
+            api = CoinGeckoAPI("", cg_client)
             await cg_client.init()
 
             price_data = await api.price(coin, currency)
@@ -28,12 +24,12 @@ async def alerts_worker(bot):
             if price is None:
                 continue
 
-            if direction == "above" and price >= threshold:
-                await bot.send_message(user_id, f"🔔 {coin.upper()} поднялся ABOVE {threshold} {currency}.\nТекущая цена: {price}")
+            if direction == "выше" and price >= threshold:
+                await bot.send_message(user_id, f"🔔 {coin.upper()} поднялся ВЫШЕ {threshold} {currency}.\nТекущая цена: {price}")
                 set_alert_triggered(alert_id, True)
 
-            if direction == "below" and price <= threshold:
-                await bot.send_message(user_id, f"🔔 {coin.upper()} опустился BELOW {threshold} {currency}.\nТекущая цена: {price}")
+            if direction == "ниже" and price <= threshold:
+                await bot.send_message(user_id, f"🔔 {coin.upper()} опустился НИЖЕ {threshold} {currency}.\nТекущая цена: {price}")
                 set_alert_triggered(alert_id, True)
 
         await asyncio.sleep(15)

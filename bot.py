@@ -4,7 +4,7 @@ import logging
 from dotenv import load_dotenv
 from aiogram import Bot, Dispatcher
 
-from handlers import router
+from handlers import global_router
 from database import init_db
 from alerts import alerts_worker
 
@@ -13,7 +13,7 @@ load_dotenv()
 
 bot = Bot(os.getenv("TELEGRAM_TOKEN"))
 dp = Dispatcher()
-dp.include_router(router)
+dp.include_router(global_router)
 
 logging.basicConfig(
     level=logging.DEBUG,   
@@ -34,4 +34,3 @@ if __name__ == "__main__":
         asyncio.run(main())
     except KeyboardInterrupt:
         print("exist")
-    

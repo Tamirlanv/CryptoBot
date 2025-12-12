@@ -30,6 +30,7 @@ class HTTPClient:
 
         cached = self.cache.get(cache_key)
         if cached:
+            print(f"[CACHE HIT] {cache_key}")
             return cached
 
         try:
@@ -46,6 +47,7 @@ class HTTPClient:
                     data = text  
 
                 self.cache.set(cache_key, data)
+                print(f"[CACHE SET] {cache_key}")
                 return data
 
         except Exception as e:
