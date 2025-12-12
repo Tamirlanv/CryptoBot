@@ -6,19 +6,48 @@ class CoinGeckoAPI:
         self.api_key = api_key
         self.client = cg_client
         
-    def auth(self):
-        return {"x_cg_demo_api-key": self.api_key}
+    def get_headers(self):
+        """Возвращает headers для аутентификации через CoinGecko Demo API"""
+        return {
+            "accept": "application/json",
+            "x-cg-demo-api-key": self.api_key
+        }
+    
+    async def validate_api_key(self):
+        """
+        Проверка валидности API ключа через endpoint /ping.
+        Возвращает True, если ключ валидный, иначе False.
+        """
+        # Базовая проверка формата (ключи обычно длинные строки)
+        if not self.api_key or len(self.api_key) < 10:
+            return False
+            
+        try:
+            # Используем endpoint /ping для проверки с правильными headers
+            result = await self.client.get("/ping", headers=self.get_headers())
+            
+            # Проверяем статус код и наличие gecko_says в ответе
+            if result and "error" not in result and "gecko_says" in result:
+                return True
+            
+            # Если получили ошибку 401 - неверный ключ
+            if result and result.get("status") == 401:
+                return False
+                
+            return False
+        except Exception as e:
+            print(f"Ошибка валидации API ключа: {e}")
+            return False
 
     async def price(self, coin, vs):
         params = {
             "ids": coin,
-            "vs_currencies": vs,
-            **self.auth()
+            "vs_currencies": vs
         }
-        return await self.client.get("/simple/price", params)
+        return await self.client.get("/simple/price", params=params, headers=self.get_headers())
 
     async def list_coins(self):
-        return await self.client.get("/coins/list", self.auth())
+        return await self.client.get("/coins/list", headers=self.get_headers())
     
     async def get_currencies(self):
         return await self.client.get("simple/supported_vs_currencies")
@@ -27,32 +56,30 @@ class CoinGeckoAPI:
         return await self.client.get("search/trending")
 
     async def get_markets(self, vs_currency="usd", per_page=10, page=1):
-        return await self.client.get(
-            "coins/markets",
-            {
-                "vs_currency": vs_currency,
-                "order": "market_cap_desc",
-                "per_page": per_page,
-                "page": page
-            }
-        )
+        params = {
+            "vs_currency": vs_currency,
+            "order": "market_cap_desc",
+            "per_page": per_page,
+            "page": page
+        }
+        return await self.client.get("coins/markets", params=params, headers=self.get_headers())
 
     async def get_coin(self, coin_id):
-        return await self.client.get(
-            f"coins/{coin_id}",
-            {
-                "localization": "false",
-                "tickers": "false",
-                "market_data": "true",
-                "community_data": "false",
-                "developer_data": "false"
-            }
-        )
+        params = {
+            "localization": "false",
+            "tickers": "false",
+            "market_data": "true",
+            "community_data": "false",
+            "developer_data": "false"
+        }
+        return await self.client.get(f"coins/{coin_id}", params=params, headers=self.get_headers())
 
     async def get_chart(self, coin, currency="usd", days=7):
+        params = {"vs_currency": currency, "days": days}
         return await self.client.get(
             f"coins/{coin}/market_chart",
-            {"vs_currency": currency, "days": days}
+            params=params,
+            headers=self.get_headers()
         )
 
     # ---------- КОНВЕРТЕР ----------

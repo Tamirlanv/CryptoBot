@@ -96,7 +96,29 @@ async def cg_start(message: Message, state: FSMContext):
 
 @router.message(CGAuth.waiting_key)
 async def cg_got_key(message: Message, state: FSMContext):
-    save_cg_key(message.from_user.id, message.text.strip())
+    api_key = message.text.strip()
+    
+    # Индикация проверки
+    wait_msg = await message.answer("⏳ Проверяю API ключ...")
+    
+    # Валидация API ключа
+    api = CoinGeckoAPI(api_key, cg_client)
+    await cg_client.init()
+    
+    is_valid = await api.validate_api_key()
+    
+    await wait_msg.delete()
+    
+    if not is_valid:
+        await message.answer(
+            "❌ *Ошибка!* API ключ недействителен.\n\n"
+            "Пожалуйста, проверьте ключ и попробуйте снова.\n"
+            "Получить ключ можно на: https://www.coingecko.com/en/api/pricing",
+            parse_mode="Markdown"
+        )
+        return
+    
+    save_cg_key(message.from_user.id, api_key)
     await message.answer(success_text, reply_markup=main_kb)
     await state.clear()
 
