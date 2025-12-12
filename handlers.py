@@ -85,7 +85,6 @@ async def cmd_about(message: Message):
 class CGAuth(StatesGroup):
     waiting_key = State()
 
-# ---------------- AUTH ----------------
 @router.message(F.text == "🧑‍💻 Вход/Регистрация")
 async def cg_start(message: Message, state: FSMContext):
     key = get_cg_key(message.from_user.id)
@@ -96,11 +95,31 @@ async def cg_start(message: Message, state: FSMContext):
 
 @router.message(CGAuth.waiting_key)
 async def cg_got_key(message: Message, state: FSMContext):
-    save_cg_key(message.from_user.id, message.text.strip())
+    api_key = message.text.strip()
+    
+    wait_msg = await message.answer("⏳ Проверяю API ключ...")
+    
+    api = CoinGeckoAPI(api_key, cg_client)
+    await cg_client.init()
+    
+    is_valid = await api.validate_api_key()
+    
+    await wait_msg.delete()
+    
+    if not is_valid:
+        await message.answer(
+            "❌ *Ошибка!* API ключ недействителен.\n\n"
+            "Пожалуйста, проверьте ключ и попробуйте снова.\n"
+            "Получить ключ можно на: https://www.coingecko.com/en/api/pricing",
+            parse_mode="Markdown"
+        )
+        return
+    
+    save_cg_key(message.from_user.id, api_key)
     await message.answer(success_text, reply_markup=main_kb)
     await state.clear()
+    await state.clear()
 
-# ---------------- PRICE ----------------
 @router.message(F.text.startswith("/price"))
 async def cg_price(message: Message):
     args = message.text.split()
@@ -140,7 +159,6 @@ async def price_callback(callback: CallbackQuery):
         reply_markup=price_keyboard(coin)
     )
 
-# ---------------- CONVERT ----------------
 @router.message(F.text.startswith("/convert"))
 async def cg_convert(message: Message):
     args = message.text.split()
@@ -158,10 +176,7 @@ async def cg_convert(message: Message):
 
     await message.answer(
         f"💱 {amount} {from_coin.upper()} = {format_price(data['result'])} {to_coin.upper()}")
-    
-    
 
-# ---------------- TOP ----------------
 @router.message(F.text == "⭐ Топ 10")
 async def cg_top(message: Message):
     api_key = get_cg_key(message.from_user.id)
@@ -178,7 +193,6 @@ async def cg_top(message: Message):
         text += f"{i}. {coin.get('name')} ({coin.get('symbol').upper()}) — ${format_price(coin.get('current_price'))} — 24h: {coin.get('price_change_percentage_24h'):.2f}%\n"
     await message.answer(text)
 
-# ---------------- COIN INFO ----------------
 @router.message(F.text.startswith("/coin"))
 async def cg_coin(message: Message):
     args = message.text.split()
@@ -204,7 +218,6 @@ async def cg_coin(message: Message):
     text = f"🪙 {data.get('name')} ({data.get('symbol').upper()})\nPrice: ${price}\nMarket cap: ${cap}\n24h volume: ${vol}\n24h change: {change24}%\n\n{short_desc}"
     await message.answer(text)
 
-# ---------------- TRENDING ----------------
 @router.message(F.text == "🔥 Тренды")
 async def cg_trending(message: Message):
     api_key = get_cg_key(message.from_user.id)
@@ -222,8 +235,6 @@ async def cg_trending(message: Message):
         c = item.get("item", {})
         text += f"- {c.get('name')} ({c.get('symbol').upper()}) — market cap rank: {c.get('market_cap_rank')}\n"
     await message.answer(text)
-
-# ---------------- ALERTS ----------------
 
 @router.message(F.text == "🔔 Мои алерты")
 async def my_alerts(message: Message):
@@ -310,3 +321,32 @@ async def get_cryptos(message: Message):
 
     await message.answer(text, parse_mode="Markdown")
 
+
+@router.message()
+async def unknown_message(message: Message):
+    api_key = get_cg_key(message.from_user.id)
+    
+    if not api_key:
+        return await message.answer(
+            "🔐 Сначала зарегистрируйтесь!\n\n"
+            "Нажмите кнопку Вход/Регистрация или отправьте команду /start"
+        )
+    
+    text = (
+        "❓ Я не понимаю эту команду.\n\n"
+        "📋 Доступные команды:\n\n"
+        "💰 Цены и конвертация\n"
+        "/price монета валюта — цена монеты\n"
+        "/convert из в количество — конвертация\n\n"
+        "🏆 Информация о рынке\n"
+        "/coin id — подробная информация о монете\n"
+        "⭐ Топ 10 — топ монет\n"
+        "🔥 Тренды — трендовые монеты\n\n"
+        "🔔 Алерты\n"
+        "/alert монета выше/ниже цена [валюта] — создать алерт\n"
+        "/alert_remove id — удалить алерт\n"
+        "🔔 Мои алерты — ваши алерты\n\n"
+        "⚡ Быстрые кнопки - используйте кнопки снизу для быстрого доступа"
+    )
+    
+    await message.answer(text, reply_markup=main_kb)

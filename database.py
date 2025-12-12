@@ -47,8 +47,6 @@ def get_cg_key(user_id):
     conn.close()
     return row[0] if row else None
 
-
-# -------- Alerts ----------
 def add_alert_db(user_id, coin, direction, threshold, currency="usd"):
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
@@ -60,7 +58,6 @@ def add_alert_db(user_id, coin, direction, threshold, currency="usd"):
     alert_id = cur.lastrowid
     conn.close()
     return alert_id
-
 
 def list_alerts_db(user_id=None):
     conn = sqlite3.connect(DB_PATH)
